@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#15171B">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<title>Гараж — облік клієнтів і ТО</title>
+<style>
+  :root{
+    --bg: #15171B; --panel: #1D2025; --panel-alt: #23272D; --border: #2C3036;
+    --amber: #E8A33D; --amber-dim: #6b5228; --amber-text: #E8A33D;
+    --teal: #4FA8A0; --teal-text: #4FA8A0;
+    --violet: #9C8FD0; --violet-dim: #4a4066; --violet-text: #9C8FD0;
+    --green: #6FBE8C; --danger: #C1554A;
+    --text: #ECE9E3; --text-muted: #8A8E94; --text-faint: #55595F;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  :root[data-theme="light"]{
+    --bg: #F1EFEA; --panel: #FFFFFF; --panel-alt: #F4F2EC; --border: #DEDAD1;
+    --amber-dim: #E7C68A; --amber-text: #A8721F;
+    --violet-dim: #D9D2EF; --violet-text: #6B5CB0; --teal-text: #2E7971;
+    --text: #201E1A; --text-muted: #6B6760; --text-faint: #A39E93;
+  }
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{ height:100%; }
+  body{ margin:0; background:var(--bg); color:var(--text); font-family:var(--sans); overscroll-behavior-y:none; display:flex; justify-content:center; transition: background .15s ease, color .15s ease; }
+  #app{ width:100%; max-width:480px; min-height:100vh; display:flex; flex-direction:column; position:relative; }
+
+  .topbar{ position:sticky; top:0; z-index:10; background:var(--bg); border-bottom:1px solid var(--border); padding:16px 16px 14px; display:flex; align-items:center; gap:10px; }
+  .topbar .back, .icon-toggle{ width:32px; height:32px; flex-shrink:0; border-radius:50%; background:var(--panel); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-muted); font-size:14px; }
+  .topbar .back:active, .icon-toggle:active{ background:var(--panel-alt); }
+  .topbar h1{ font-size:19px; font-weight:650; margin:0; letter-spacing:-0.01em; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .topbar .sub{ font-size:12.5px; color:var(--text-muted); margin-top:1px; font-family:var(--mono); }
+  .topbar .titlewrap{ flex:1; min-width:0; }
+  .topbar .actions{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
+
+  .sync-btn{ font-size:12px; font-weight:600; padding:7px 11px; border-radius:16px; cursor:pointer; white-space:nowrap; border:1px solid var(--border); background:var(--panel); color:var(--text-muted); display:flex; align-items:center; gap:5px; }
+  .sync-btn.on{ color:var(--green); border-color:var(--green); }
+  .sync-dot{ width:6px; height:6px; border-radius:50%; background:var(--green); }
+
+  .content{ flex:1; padding:4px 16px 100px; }
+  .empty{ padding:60px 20px; text-align:center; color:var(--text-muted); font-size:14.5px; line-height:1.6; }
+  .empty .glyph{ font-size:28px; display:block; margin-bottom:10px; opacity:.6; }
+
+  .row{ display:flex; align-items:center; gap:12px; background:var(--panel); border:1px solid var(--border); border-left:3px solid var(--amber); border-radius:6px; padding:13px 14px; margin-top:10px; cursor:pointer; }
+  .row:active{ background:var(--panel-alt); }
+  .row.teal{ border-left-color:var(--teal); }
+  .row.violet{ border-left-color:var(--violet); }
+  .row-main{ flex:1; min-width:0; }
+  .row-title{ font-size:15px; font-weight:600; }
+  .row-meta{ font-size:12.5px; color:var(--text-muted); margin-top:3px; font-family:var(--mono); }
+  .row-del{ flex-shrink:0; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--text-faint); font-size:14px; }
+  .row-del:active{ background:var(--danger); color:#fff; }
+
+  .record{ background:var(--panel); border:1px solid var(--border); border-radius:6px; padding:12px 14px; margin-top:10px; display:flex; gap:12px; align-items:flex-start; }
+  .record-date{ font-family:var(--mono); font-size:12px; color:var(--amber-text); background:rgba(232,163,61,0.1); border:1px solid var(--amber-dim); border-radius:4px; padding:4px 7px; white-space:nowrap; flex-shrink:0; margin-top:1px; }
+  .record.teal .record-date{ color:var(--teal-text); background:rgba(79,168,160,0.1); border-color:#2b5854; }
+  .record-body{ flex:1; min-width:0; }
+  .record-note{ font-size:13px; color:var(--text-muted); margin-top:8px; line-height:1.4; }
+  .record-mileage{ font-size:12px; color:var(--text-faint); margin-top:6px; font-family:var(--mono); }
+  .line-item{ display:flex; justify-content:space-between; gap:10px; font-size:13.5px; padding:2px 0; }
+  .line-item .price{ color:var(--text-muted); flex-shrink:0; margin-left:10px; }
+  .record-total{ display:flex; justify-content:space-between; margin-top:7px; padding-top:7px; border-top:1px solid var(--border); font-weight:650; font-size:14px; }
+  .record .record-total .amount{ color:var(--amber-text); font-family:var(--mono); }
+  .record.teal .record-total .amount{ color:var(--teal-text); }
+
+  .partcard{ background:var(--panel); border:1px solid var(--border); border-left:3px solid var(--violet); border-radius:6px; padding:13px 14px; margin-top:10px; display:flex; gap:12px; align-items:flex-start; }
+  .partcard-body{ flex:1; min-width:0; }
+  .partcard-title{ font-size:14.5px; font-weight:600; }
+  .partcard-row{ display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; }
+  .part-tag{ font-family:var(--mono); font-size:11.5px; padding:3px 7px; border-radius:4px; background:rgba(156,143,208,0.12); border:1px solid var(--violet-dim); color:var(--violet-text); }
+  .partcard-cross{ font-size:12.5px; color:var(--text-muted); margin-top:6px; line-height:1.5; }
+  .partcard-cross b{ color:var(--text-faint); font-weight:600; }
+
+  .infocard{ background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:16px; margin-top:12px; }
+  .specs{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .spec-label{ font-size:11px; color:var(--text-faint); margin-bottom:3px; }
+  .spec-value{ font-family:var(--mono); font-size:14.5px; }
+
+  .section-label{ font-size:12px; color:var(--text-faint); margin:22px 2px 2px; font-weight:600; }
+
+  .tabs{ display:flex; gap:6px; margin-top:18px; background:var(--panel-alt); padding:4px; border-radius:8px; }
+  .tab{ flex:1; text-align:center; padding:9px 2px; font-size:12.5px; font-weight:600; color:var(--text-muted); border-radius:6px; cursor:pointer; }
+  .tab.active{ background:var(--amber); color:#1A1408; }
+  .tab.active.teal{ background:var(--teal); color:#0B211F; }
+  .tab.active.violet{ background:var(--violet); color:#1A1626; }
+
+  .fab{ position:fixed; bottom:24px; left:50%; transform:translateX(calc(-240px + 16px + 480px/2 - 28px)); width:56px; height:56px; border-radius:50%; background:var(--amber); color:#1A1408; display:flex; align-items:center; justify-content:center; font-size:26px; font-weight:400; box-shadow:0 4px 14px rgba(0,0,0,0.4); cursor:pointer; z-index:20; line-height:0; }
+  .fab.teal{ background:var(--teal); }
+  .fab.violet{ background:var(--violet); }
+  .fab:active{ filter:brightness(0.92); }
+
+  .sheet-overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.55); display:none; z-index:30; justify-content:center; }
+  .sheet-overlay.open{ display:flex; }
+  .sheet{ position:absolute; bottom:0; width:100%; max-width:480px; background:var(--panel); border-top:1px solid var(--border); border-radius:16px 16px 0 0; padding:18px 18px 22px; max-height:85vh; overflow-y:auto; }
+  .sheet h3{ margin:0 0 16px; font-size:16px; font-weight:650; }
+  .sheet p.hint{ font-size:13px; color:var(--text-muted); line-height:1.5; margin:-8px 0 16px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:12px; color:var(--text-muted); margin-bottom:6px; }
+  .field input, .field textarea{ width:100%; background:var(--panel-alt); border:1px solid var(--border); color:var(--text); border-radius:7px; padding:11px 12px; font-size:15px; font-family:var(--sans); }
+  .field input.mono{ font-family:var(--mono); }
+  .field textarea{ resize:vertical; min-height:56px; font-family:var(--sans); }
+  .field textarea.mono{ font-family:var(--mono); }
+  .field input:focus, .field textarea:focus{ outline:2px solid var(--amber); outline-offset:0; border-color:transparent; }
+  .sheet-actions{ display:flex; gap:10px; margin-top:6px; }
+  .btn{ flex:1; padding:13px; border-radius:8px; text-align:center; font-size:14.5px; font-weight:650; cursor:pointer; border:none; }
+  .btn-cancel{ background:var(--panel-alt); color:var(--text-muted); }
+  .btn-save{ background:var(--amber); color:#1A1408; }
+  .btn-google{ background:#fff; color:#3c4043; display:flex; align-items:center; justify-content:center; gap:10px; border:1px solid #dadce0; }
+
+  .item-row{ display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  .item-row input[type=text]{ flex:1; }
+  .item-row input[type=number]{ width:92px; text-align:right; flex-shrink:0; }
+  .item-del{ width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--text-faint); font-size:13px; flex-shrink:0; cursor:pointer; }
+  .item-del:active{ background:var(--danger); color:#fff; }
+  .add-item-btn{ font-size:13px; color:var(--amber-text); font-weight:650; padding:6px 0 2px; cursor:pointer; }
+  .total-row{ display:flex; justify-content:space-between; align-items:center; background:var(--panel-alt); border-radius:7px; padding:11px 13px; margin:4px 0 16px; font-size:14.5px; font-weight:650; }
+  .total-row span:last-child{ font-family:var(--mono); color:var(--amber-text); }
+
+  .loading{ padding:60px 20px; text-align:center; color:var(--text-faint); font-size:14px; }
+  .err{ padding:14px 16px; background:rgba(193,85,74,0.12); border:1px solid var(--danger); color:#E8B4AE; border-radius:8px; margin-top:12px; font-size:13.5px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="sheet-overlay" id="sheetOverlay"><div class="sheet" id="sheetContent"></div></div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+/* ======= НАЛАШТУВАННЯ: вставте свій Client ID з Google Cloud Console ======= */
+const GOOGLE_CLIENT_ID = 'ВСТАВТЕ_СЮДИ_ВАШ_CLIENT_ID.apps.googleusercontent.com';
+/* ============================================================================ */
+
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const DRIVE_FILENAME = 'garage_data.json';
+const STORAGE_KEY = 'garage_local_data';
+const SIGNED_IN_FLAG = 'garage_signed_in';
+
+let data = null;
+let loaded = false;
+let loadError = false;
+let nav = { view: 'clients', clientId: null, vehicleId: null, vehTab: 'to' };
+let sheetState = null;
+
+let tokenClient = null;
+let accessToken = null;
+let driveFileId = null;
+let syncing = false;
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function esc(s){ const d = document.createElement('div'); d.innerText = (s===undefined||s===null)?'':s; return d.innerHTML; }
+function escAttr(s){ return (s===undefined||s===null?'':String(s)).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ---------- Local storage (works fully offline) ---------- */
+function localLoad(){
+  try{ const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : null; }catch(e){ return null; }
+}
+function localSave(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }catch(e){}
+}
+
+function loadData(){
+  data = localLoad();
+  if(!data) data = { clients: [], vehicles: [], maintenance: [], repairs: [], partsCatalog: [], theme: 'dark' };
+  if(!data.repairs) data.repairs = [];
+  if(!data.partsCatalog) data.partsCatalog = [];
+  if(!data.theme) data.theme = 'dark';
+  loaded = true;
+  render();
+  initGoogleAuth();
+}
+
+function saveData(){
+  localSave();
+  render();
+  if(accessToken){ driveUpload(); }
+}
+
+/* ---------- Google sign-in ---------- */
+function initGoogleAuth(){
+  if(!window.google || !window.google.accounts){ setTimeout(initGoogleAuth, 300); return; }
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: DRIVE_SCOPE,
+    callback: async (resp) => {
+      if(resp.error){ console.error(resp); return; }
+      accessToken = resp.access_token;
+      localStorage.setItem(SIGNED_IN_FLAG, '1');
+      await syncFromDrive();
+      render();
+    }
+  });
+  if(localStorage.getItem(SIGNED_IN_FLAG) === '1'){
+    try{ tokenClient.requestAccessToken({ prompt: '' }); }catch(e){}
+  }
+}
+function signIn(){
+  if(!tokenClient){ return; }
+  tokenClient.requestAccessToken({ prompt: 'consent' });
+}
+function signOut(){
+  if(accessToken && window.google){ google.accounts.oauth2.revoke(accessToken, ()=>{}); }
+  accessToken = null; driveFileId = null;
+  localStorage.removeItem(SIGNED_IN_FLAG);
+  render();
+}
+
+/* ---------- Google Drive REST calls ---------- */
+async function driveFindFile(){
+  const q = encodeURIComponent(`name='${DRIVE_FILENAME}' and trashed=false`);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name,modifiedTime)`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  const j = await res.json();
+  return (j.files && j.files[0]) || null;
+}
+async function driveDownload(fileId){
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  return await res.json();
+}
+async function driveUpload(){
+  if(syncing) return;
+  syncing = true;
+  try{
+    const metadata = { name: DRIVE_FILENAME, mimeType: 'application/json' };
+    const boundary = 'garageboundary' + uid();
+    const body =
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
+      `--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(data)}\r\n--${boundary}--`;
+    const url = driveFileId
+      ? `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`
+      : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
+    const res = await fetch(url, {
+      method: driveFileId ? 'PATCH' : 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
+      body
+    });
+    const j = await res.json();
+    if(j.id) driveFileId = j.id;
+  }catch(e){ console.error('drive upload error', e); }
+  syncing = false;
+}
+async function syncFromDrive(){
+  try{
+    const f = await driveFindFile();
+    if(f){
+      driveFileId = f.id;
+      const remote = await driveDownload(f.id);
+      data = Object.assign({ clients:[], vehicles:[], maintenance:[], repairs:[], partsCatalog:[], theme:data.theme||'dark' }, remote);
+      localSave();
+    }else{
+      await driveUpload();
+    }
+  }catch(e){ console.error('sync error', e); }
+}
+
+/* ---------- Theme ---------- */
+function applyTheme(){ document.documentElement.setAttribute('data-theme', (data && data.theme==='light') ? 'light' : 'dark'); }
+function toggleTheme(){ data.theme = data.theme==='light' ? 'dark' : 'light'; saveData(); }
+
+function goto(view, opts){
+  nav = Object.assign({ view, clientId: nav.clientId, vehicleId: nav.vehicleId, vehTab: nav.vehTab }, opts || {});
+  render();
+}
+function closeSheet(){ document.getElementById('sheetOverlay').classList.remove('open'); document.getElementById('sheetContent').innerHTML=''; sheetState=null; }
+function openSheet(html){ document.getElementById('sheetContent').innerHTML = html; document.getElementById('sheetOverlay').classList.add('open'); }
+
+/* ---------- Sign-in sheet ---------- */
+function sheetSignIn(){
+  openSheet(`
+    <h3>Синхронізація через Google Drive</h3>
+    <p class="hint">Дані зберігатимуться у файлі <b>${DRIVE_FILENAME}</b> у вашому Google Drive. Застосунок отримає доступ лише до файлів, які сам створює — не до всього диска.</p>
+    <div class="sheet-actions">
+      <button class="btn btn-cancel" onclick="closeSheet()">Скасувати</button>
+      <button class="btn btn-google" onclick="closeSheet(); signIn();">Увійти через Google</button>
+    </div>`);
+}
+function sheetSignOut(){
+  openSheet(`
+    <h3>Вимкнути синхронізацію?</h3>
+    <p class="hint">Дані залишаться на цьому пристрої локально, але перестануть підтягуватись з інших.</p>
+    <div class="sheet-actions">
+      <button class="btn btn-cancel" onclick="closeSheet()">Скасувати</button>
+      <button class="btn btn-save" style="background:var(--danger);color:#fff" onclick="closeSheet(); signOut();">Вийти</button>
+    </div>`);
+}
+
+/* ---------- Client / vehicle forms ---------- */
+function sheetAddClient(){
+  openSheet(`
+    <h3>Новий клієнт</h3>
+    <div class="field"><label>Ім'я</label><input id="f_name" placeholder="Наприклад, Олексій"></div>
+    <div class="field"><label>Телефон</label><input id="f_phone" class="mono" placeholder="+380..." inputmode="tel"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-cancel" onclick="closeSheet()">Скасувати</button>
+      <button class="btn btn-save" onclick="submitAddClient()">Зберегти</button>
+    </div>`);
+  setTimeout(()=>document.getElementById('f_name')?.focus(), 50);
+}
+function submitAddClient(){
+  const name = document.getElementById('f_name').value.trim();
+  const phone = document.getElementById('f_phone').value.trim();
+  if(!name){ return; }
+  data.clients.push({ id: uid(), name, phone });
+  closeSheet(); saveData();
+}
+function sheetAddVehicle(clientId){
+  openSheet(`
+    <h3>Нове авто</h3>
+    <div class="field"><label>Марка / модель</label><input id="f_model" placeholder="Наприклад, Mercedes W164 ML320 CDI"></div>
+    <div class="field"><label>VIN</label><input id="f_vin" class="mono" placeholder="17 символів"></div>
+    <div class="field"><label>Рік випуску</label><input id="f_year" class="mono" inputmode="numeric" placeholder="2008"></div>
+    <div class="field"><label>Двигун</label><input id="f_engine" class="mono" placeholder="OM642, 3.0 CDI"></div>
+    <div class="sheet-actions">
+      <button class="btn btn-cancel" onclick="closeSheet()">Скасувати</button>
+      <button class="btn btn-save" onclick="submitAddVehicle('${clientId}')">Зберегти</button>
+    </div>`);
+  setTimeout(()=>document.getElementById('f_model')?.focus(), 50);
+}
+function submitAddVehicle(clientId){
+  const model = document.getElementById('f_model').value.trim();
+  const vin = document.getElementById('f_vin').value.trim();
+  const year = document.getElementById('f_year').value.trim();
+  const engine = document.getElementById('f_engine').value.trim();
+  if(!model && !vin){ return; }
+  data.vehicles.push({ id: uid(), clientId, model, vin, year, engine });
+  closeSheet(); saveData();
+}
+
+/* ---------- ТО / Ремонт: itemized record sheet ---------- */
+function openRecordSheet(kind, vehicleId){
+  sheetState = { kind, vehicleId, date: new Date().toISOString().slice(0,10), mileage:'', note:'', items:[{desc:'',price:''}] };
+  renderRecordSheet();
+}
+function renderRecordSheet(){
+  const isTo = sheetState.kind === 'to';
+  const itemsHtml = sheetState.items.map((it,i)=>`
+    <div class="item-row">
+      <input type="text" placeholder="Робота або запчастина" value="${escAttr(it.desc)}" oninput="sheetState.items[${i}].desc=this.value">
+      <input type="number" inputmode="decimal" class="mono" placeholder="0" value="${escAttr(it.price)}" oninput="sheetState.items[${i}].price=this.value; recalcSheetTotal();">
+      <div class="item-del" onclick="removeItem(${i})">✕</div>
+    </div>`).join('');
+  const total = sheetState.items.reduce((s,it)=> s + (parseFloat(it.price)||0), 0);
+  openSheet(`
+    <h3>${isTo ? 'Новий запис ТО' : 'Новий запис ремонту'}</h3>
+    <div class="field"><label>Дата</label><input type="date" class="mono" value="${escAttr(sheetState.date)}" oninput="sheetState.date=this.value"></div>
+    <div class="field"><label>Пробіг, км</label><input type="text" inputmode="numeric" class="mono" value="${escAttr(sheetState.mileage)}" oninput="sheetState.mileage=this.value" placeholder="128000"></div>
+    <div class="field">
+      <label>Роботи / запчастини і вартість</label>
+      <div id="itemsWrap">${itemsHtml}</div>
+      <div class="add-item-btn" onclick="addItem()">+ Додати рядок</div>
+    </div>
+    <div class="total-row"><span>Разом</span><span id="sheetTotal">${total.toFixed(0)} ₴</span></div>
+    <div class="field"><label>Примітка</label><textarea oninput="sheetState.note=this.value" placeholder="Додаткові деталі...">${esc(sheetState.note)}</textarea></div>
+    <div class="sheet-actions">
+      <button class="btn btn-cancel" onclick="closeSheet()">Скасувати</button>
+      <button class="btn btn-save" onclick="submitRecordSheet()">Зберегти</button>
+    </div>`);
+}
+function recalcSheetTotal(){
+  const total = sheetState.items.reduce((s,it)=> s + (parseFloat(it.price)||0), 0);
+  const el = document.getElementById('sheetTotal');
+  if(el) el.textContent = total.toFixed(0) + ' ₴';
+}
+function addItem(){ sheetState.items.push({desc:'',price:''}); renderRecordSheet(); }
+function removeItem(i){ sheetState.items.splice(i,1); if(sheetState.items.length===0) sheetState.items.push({desc:'',price:''}); renderRecordSheet(); }
+function submitRecordSheet(){
+  const items = sheetState.items.map(it=>({ desc:(it.desc||'').trim(), price: parseFloat(it.price)||0 })).filter(it=>it.desc);
+  if(items.length===0){ return; }
+  const rec = { id: uid(), vehicleId: sheetState.vehicleId, date: sheetState.date, mileage: (sheetState.mileage||'').trim(), note: (sheetState.note||'').trim(), items };
+  if(sheetState.kind === 'to') data.maintenance.push(rec); else data.repairs.push(rec);
+  closeSheet(); saveData();
+}
+
+/* ---------- Parts catalog ---------- */
+function sheetAddPart(vehicleId){
+  openSheet(`
+    <h3>Нова запчастина</h3>
+    <div class="field"><label>Назва деталі</label><input id="f_pname" placeholder="Гальмівні колодки передні"></div>
+    <div class="field"><label>Артикул (OEM)</label><input id="f_article" class="mono" placeholder="A0004202900"></div>
+    <div class="field"><label>Крос-номери інших виробників</label><textarea id="f_cross" class="mono" placeholder="Одна назва — один рядок, напр.:&#10;Textar: 2382501&#10;ATE: 13.0470-7113.2"></textarea></div>
+    <div class="field"><label>Примітка</label><textarea id="f_pnote" placeholder="Де купували, сумісність, дата встановлення..."></textarea></div>
+    <div class="sheet-actions">
+      <button class="btn btn-cancel" onclick="closeSheet()">Скасувати</button>
+      <button class="btn btn-save" onclick="submitAddPart('${vehicleId}')">Зберегти</button>
+    </div>`);
+  setTimeout(()=>document.getElementById('f_pname')?.focus(), 50);
+}
+function submitAddPart(vehicleId){
+  const title = document.getElementById('f_pname').value.trim();
+  const article = document.getElementById('f_article').value.trim();
+  const cross = document.getElementById('f_cross').value.trim();
+  const note = document.getElementById('f_pnote').value.trim();
+  if(!title){ return; }
+  data.partsCatalog.push({ id: uid(), vehicleId, title, article, cross, note });
+  closeSheet(); saveData();
+}
+
+/* ---------- Delete ---------- */
+function confirmDelete(msg, fn){
+  openSheet(`
+    <h3>${esc(msg)}</h3>
+    <div class="sheet-actions">
+      <button class="btn btn-cancel" onclick="closeSheet()">Скасувати</button>
+      <button class="btn btn-save" style="background:var(--danger);color:#fff" onclick="(${fn.toString()})(); closeSheet(); saveData();">Видалити</button>
+    </div>`);
+}
+function deleteClient(id){
+  confirmDelete('Видалити клієнта і всі його авто?', () => {
+    const vehIds = data.vehicles.filter(v=>v.clientId===id).map(v=>v.id);
+    data.clients = data.clients.filter(c=>c.id!==id);
+    data.vehicles = data.vehicles.filter(v=>v.clientId!==id);
+    data.maintenance = data.maintenance.filter(m=>!vehIds.includes(m.vehicleId));
+    data.repairs = data.repairs.filter(r=>!vehIds.includes(r.vehicleId));
+    data.partsCatalog = data.partsCatalog.filter(p=>!vehIds.includes(p.vehicleId));
+  });
+}
+function deleteVehicle(id){
+  confirmDelete('Видалити авто та всю історію?', () => {
+    data.vehicles = data.vehicles.filter(v=>v.id!==id);
+    data.maintenance = data.maintenance.filter(m=>m.vehicleId!==id);
+    data.repairs = data.repairs.filter(r=>r.vehicleId!==id);
+    data.partsCatalog = data.partsCatalog.filter(p=>p.vehicleId!==id);
+    goto('clientDetail', { vehicleId: null });
+  });
+}
+function deleteRecord(kind, id){
+  confirmDelete('Видалити запис?', () => {
+    if(kind==='to') data.maintenance = data.maintenance.filter(m=>m.id!==id);
+    else if(kind==='repair') data.repairs = data.repairs.filter(r=>r.id!==id);
+    else data.partsCatalog = data.partsCatalog.filter(p=>p.id!==id);
+  });
+}
+function resetAll(){
+  confirmDelete('Скинути всі дані застосунку?', () => {
+    data = { clients: [], vehicles: [], maintenance: [], repairs: [], partsCatalog: [], theme: data.theme };
+    nav = { view:'clients', clientId:null, vehicleId:null, vehTab:'to' };
+  });
+}
+
+/* ---------- Render ---------- */
+function render(){
+  applyTheme();
+  const app = document.getElementById('app');
+  if(!loaded){ app.innerHTML = `<div class="loading">Завантаження даних…</div>`; return; }
+  let html = '';
+  if(nav.view === 'clients') html = renderClients();
+  else if(nav.view === 'clientDetail') html = renderClientDetail();
+  else if(nav.view === 'vehicleDetail') html = renderVehicleDetail();
+  app.innerHTML = html + (loadError ? `<div class="content"><div class="err">Не вдалось синхронізувати дані. Спробуйте ще раз.</div></div>` : '');
+}
+function themeIcon(){ return data.theme === 'light' ? '🌙' : '☀️'; }
+function syncBtnHtml(){
+  return accessToken
+    ? `<div class="sync-btn on" onclick="sheetSignOut()"><span class="sync-dot"></span>синхр.</div>`
+    : `<div class="sync-btn" onclick="sheetSignIn()">Увійти</div>`;
+}
+
+function renderClients(){
+  const clients = data.clients;
+  let rows = '';
+  if(clients.length === 0){
+    rows = `<div class="empty"><span class="glyph">🔧</span>Ще немає жодного клієнта.<br>Натисніть «+», щоб додати першого.</div>`;
+  }else{
+    rows = clients.map(c => {
+      const vc = data.vehicles.filter(v=>v.clientId===c.id).length;
+      return `
+        <div class="row" onclick="goto('clientDetail',{clientId:'${c.id}'})">
+          <div class="row-main">
+            <div class="row-title">${esc(c.name)}</div>
+            <div class="row-meta">${esc(c.phone) || '—'} · ${vc} авто</div>
+          </div>
+          <div class="row-del" onclick="event.stopPropagation(); deleteClient('${c.id}')">✕</div>
+        </div>`;
+    }).join('');
+  }
+  return `
+    <div class="topbar">
+      <div class="titlewrap"><h1>Клієнти</h1></div>
+      <div class="actions">
+        ${syncBtnHtml()}
+        <div class="icon-toggle" onclick="toggleTheme()">${themeIcon()}</div>
+      </div>
+    </div>
+    <div class="content">${rows}</div>
+    <div class="fab" onclick="sheetAddClient()">+</div>`;
+}
+
+function renderClientDetail(){
+  const c = data.clients.find(x=>x.id===nav.clientId);
+  if(!c) return renderClients();
+  const vehicles = data.vehicles.filter(v=>v.clientId===c.id);
+  let rows = '';
+  if(vehicles.length===0){
+    rows = `<div class="empty"><span class="glyph">🚗</span>У цього клієнта ще немає авто.</div>`;
+  }else{
+    rows = vehicles.map(v => `
+      <div class="row teal" onclick="goto('vehicleDetail',{vehicleId:'${v.id}', vehTab:'to'})">
+        <div class="row-main">
+          <div class="row-title">${esc(v.model) || 'Авто'}</div>
+          <div class="row-meta">${esc(v.vin) || 'VIN не вказано'} ${v.year ? '· ' + esc(v.year) : ''}</div>
+        </div>
+        <div class="row-del" onclick="event.stopPropagation(); deleteVehicle('${v.id}')">✕</div>
+      </div>`).join('');
+  }
+  return `
+    <div class="topbar">
+      <div class="back" onclick="goto('clients')">‹</div>
+      <div class="titlewrap"><h1>${esc(c.name)}</h1><div class="sub">${esc(c.phone) || 'телефон не вказано'}</div></div>
+      <div class="actions"><div class="icon-toggle" onclick="toggleTheme()">${themeIcon()}</div></div>
+    </div>
+    <div class="content">
+      <div class="section-label">Авто клієнта</div>
+      ${rows}
+    </div>
+    <div class="fab" onclick="sheetAddVehicle('${c.id}')">+</div>`;
+}
+
+function renderVehicleDetail(){
+  const v = data.vehicles.find(x=>x.id===nav.vehicleId);
+  if(!v) return renderClients();
+  const tab = nav.vehTab || 'to';
+  let bodyHtml = '', fabClass = '', fabAction = '';
+
+  if(tab === 'to' || tab === 'repair'){
+    const isTo = tab === 'to';
+    const list = isTo ? data.maintenance : data.repairs;
+    const records = list.filter(r=>r.vehicleId===v.id).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    if(records.length===0){
+      bodyHtml = `<div class="empty">${isTo ? 'Записів ТО ще немає.' : 'Записів про ремонт ще немає.'}</div>`;
+    }else{
+      bodyHtml = records.map(r => {
+        const items = (r.items && r.items.length) ? r.items : (r.title ? [{desc:r.title, price:0}] : []);
+        const total = items.reduce((s,it)=> s + (parseFloat(it.price)||0), 0);
+        const lines = items.map(it => `<div class="line-item"><span>${esc(it.desc)}</span><span class="price mono">${it.price ? Number(it.price).toFixed(0)+' ₴' : '—'}</span></div>`).join('');
+        return `
+          <div class="record ${isTo?'':'teal'}">
+            <div class="record-date">${r.date ? esc(r.date) : '—'}</div>
+            <div class="record-body">
+              ${lines}
+              <div class="record-total"><span>Разом</span><span class="amount">${total.toFixed(0)} ₴</span></div>
+              ${r.mileage ? `<div class="record-mileage">${esc(r.mileage)} км</div>` : ''}
+              ${r.note ? `<div class="record-note">${esc(r.note)}</div>` : ''}
+            </div>
+            <div class="row-del" onclick="deleteRecord('${isTo?'to':'repair'}','${r.id}')">✕</div>
+          </div>`;
+      }).join('');
+    }
+    fabClass = isTo ? '' : 'teal';
+    fabAction = `openRecordSheet('${tab}','${v.id}')`;
+  }else{
+    const parts = data.partsCatalog.filter(p=>p.vehicleId===v.id);
+    if(parts.length===0){
+      bodyHtml = `<div class="empty">Запчастин ще не додано.</div>`;
+    }else{
+      bodyHtml = parts.map(p => `
+        <div class="partcard">
+          <div class="partcard-body">
+            <div class="partcard-title">${esc(p.title)}</div>
+            <div class="partcard-row">${p.article ? `<span class="part-tag">OEM ${esc(p.article)}</span>` : ''}</div>
+            ${p.cross ? `<div class="partcard-cross"><b>Крос-номери:</b><br>${esc(p.cross).replace(/\n/g,'<br>')}</div>` : ''}
+            ${p.note ? `<div class="record-note">${esc(p.note)}</div>` : ''}
+          </div>
+          <div class="row-del" onclick="deleteRecord('part','${p.id}')">✕</div>
+        </div>`).join('');
+    }
+    fabClass = 'violet';
+    fabAction = `sheetAddPart('${v.id}')`;
+  }
+
+  return `
+    <div class="topbar">
+      <div class="back" onclick="goto('clientDetail',{vehicleId:null})">‹</div>
+      <div class="titlewrap"><h1>${esc(v.model) || 'Авто'}</h1><div class="sub">${esc(v.vin) || 'VIN не вказано'}</div></div>
+      <div class="actions"><div class="icon-toggle" onclick="toggleTheme()">${themeIcon()}</div></div>
+    </div>
+    <div class="content">
+      <div class="infocard">
+        <div class="specs">
+          <div class="spec"><div class="spec-label">VIN</div><div class="spec-value">${esc(v.vin) || '—'}</div></div>
+          <div class="spec"><div class="spec-label">Рік випуску</div><div class="spec-value">${esc(v.year) || '—'}</div></div>
+          <div class="spec"><div class="spec-label">Двигун</div><div class="spec-value">${esc(v.engine) || '—'}</div></div>
+        </div>
+      </div>
+      <div class="tabs">
+        <div class="tab ${tab==='to'?'active':''}" onclick="goto('vehicleDetail',{vehTab:'to'})">ТО</div>
+        <div class="tab ${tab==='repair'?'active teal':''}" onclick="goto('vehicleDetail',{vehTab:'repair'})">Ремонт</div>
+        <div class="tab ${tab==='parts'?'active violet':''}" onclick="goto('vehicleDetail',{vehTab:'parts'})">Запчастини</div>
+      </div>
+      ${bodyHtml}
+    </div>
+    <div class="fab ${fabClass}" onclick="${fabAction}">+</div>`;
+}
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
+}
+loadData();
+</script>
+</body>
+</html>
